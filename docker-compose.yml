@@ -1,0 +1,108 @@
+version: '3.18'
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    networks:
+      - fsa_network
+
+  kafka:
+    image: wurstmeister/kafka:latest
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+    depends_on:
+      - zookeeper
+    networks:
+      - fsa_network
+
+  clickhouse:
+    image: yandex/clickhouse-server:latest
+    ports:
+      - "8123:8123"
+    networks:
+      - fsa_network
+
+  postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: fsa_parser_db
+    ports:
+      - "5437:5432"
+    networks:
+      - fsa_network
+
+  ingestion_service:
+    build:
+      context: .
+      dockerfile: ./app/ingestion_service/Dockerfile
+    ports:
+      - "8001:8001"
+    depends_on:
+      - kafka
+      - zookeeper
+      - postgres
+    environment:
+      KAFKA_BROKER_URL: kafka:9092
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: 8123
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: fsa_parser_db
+    networks:
+      - fsa_network
+
+  processing_service:
+    build:
+      context: .
+      dockerfile: ./app/processing_service/Dockerfile
+    depends_on:
+      - kafka
+      - zookeeper
+      - clickhouse
+      - postgres
+    environment:
+      KAFKA_BROKER_URL: kafka:9092
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: 8123
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: fsa_parser_db
+    networks:
+      - fsa_network
+
+  analytics_service:
+    build:
+      context: .
+      dockerfile: ./app/analytics_service/Dockerfile
+    ports:
+      - "8002:8002"
+    depends_on:
+      - clickhouse
+      - postgres
+    environment:
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: 8123
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: fsa_parser_db
+    networks:
+      - fsa_network
+
+networks:
+  fsa_network:
+    driver: bridge

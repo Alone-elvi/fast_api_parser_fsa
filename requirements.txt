@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+confluent-kafka
+pandas
+openpyxl
+clickhouse-driver
+psycopg2-binary
+six==1.16.0
+python-multipart
