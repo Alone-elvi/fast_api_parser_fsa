@@ -9,14 +9,14 @@ from common.config import (
 
 
 class ClickhouseClient:
-    def __init__(self):
-        self.client = Client(
-            host=CLICKHOUSE_HOST,
-            port=CLICKHOUSE_PORT,
-            user=CLICKHOUSE_USER,
-            password=CLICKHOUSE_PASSWORD,
-            database=CLICKHOUSE_DB,
-        )
-
-    def execute(self, query, params=None):
-        return self.client.execute(query, params)
+    _instance = None
+    
+    def __new__(cls, dsn: str = None):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance.dsn = dsn
+            cls._instance.client = cls._instance._init_client()
+        return cls._instance
+        
+    def _init_client(self):
+        return clickhouse_connect.get_client(dsn=self.dsn) 

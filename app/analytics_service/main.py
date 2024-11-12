@@ -1,30 +1,40 @@
 from fastapi import FastAPI
-from common.clickhouse import ClickhouseClient
-from common.postgres import PostgresClient
+from fastapi.middleware.cors import CORSMiddleware
+import logging
 
-app = FastAPI(
-    title="Analytics Service",
-    description="Service for providing analytics and viewing records",
-    version="1.0.0",
+# Настройка логирования
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+app = FastAPI()
+
+# Добавляем CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-clickhouse_client = ClickhouseClient()
-postgres_client = PostgresClient()
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
 
+@app.get("/analytics/certificates/monthly")
+async def get_monthly_stats():
+    try:
+        # TODO: Добавить запрос к ClickHouse
+        return {"message": "Monthly statistics endpoint"}
+    except Exception as e:
+        logger.error(f"Error getting monthly stats: {str(e)}")
+        return {"error": str(e)}
 
-@app.get("/analytics", tags=["Analytics"])
-async def get_analytics():
-    """
-    Получение аналитических данных из ClickHouse.
-    """
-    result = clickhouse_client.execute("SELECT * FROM data_table LIMIT 10")
-    return result
-
-
-@app.get("/records", tags=["Records"])
-async def get_records():
-    """
-    Получение записей из PostgreSQL.
-    """
-    result = postgres_client.execute("SELECT * FROM records LIMIT 10")
-    return result
+@app.get("/analytics/certificates/violations")
+async def get_violations_stats():
+    try:
+        # TODO: Добавить запрос к ClickHouse
+        return {"message": "Violations statistics endpoint"}
+    except Exception as e:
+        logger.error(f"Error getting violations stats: {str(e)}")
+        return {"error": str(e)}

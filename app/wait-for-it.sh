@@ -36,39 +36,15 @@ wait_for() {
     start_ts=$(date +%s)
     while :
     do
-        if [[ "$QUIET" -ne 1 ]]; then
-            nc -z "${HOST}" "${PORT}" >/dev/null 2>&1
-        else
-            nc -z "${HOST}" "${PORT}" >/dev/null 2>&1
-        fi
-        result=$?
-        if [[ $result -eq 0 ]]; then
+        if nc -z "${HOST}" "${PORT}" >/dev/null 2>&1; then
             end_ts=$(date +%s)
             echoerr "$0: ${HOST}:${PORT} is available after $((end_ts - start_ts)) seconds"
-            break
+            return 0
         fi
         sleep 1
     done
-    return $result
-}
-
-wait_for_wrapper() {
-    # In order to support SIGINT during timeout: http://unix.stackexchange.com/a/57692
-    if [[ "$QUIET" -ne 1 ]]; then
-        timeout "${TIMEOUT}" bash -c wait_for
-    else
-        timeout "${TIMEOUT}" bash -c wait_for
-    fi
-    result=$?
-    if [[ $result -ne 0 ]]; then
-        echoerr "$0: timeout occurred after waiting $TIMEOUT seconds for ${HOST}:${PORT}"
-    fi
-    if [[ "$STRICT" -eq 1 ]]; then
-        if [[ $result -ne 0 ]]; then
-            exit $result
-        fi
-    fi
-    return $result
+    echoerr "$0: timeout occurred after waiting $TIMEOUT seconds for ${HOST}:${PORT}"
+    return 1
 }
 
 # process arguments
@@ -136,10 +112,18 @@ if [[ "$HOST" == "" || "$PORT" == "" ]]; then
     usage 2
 fi
 
-wait_for_wrapper
+wait_for
+
+result=$?
+
+if [[ "$STRICT" -eq 1 ]]; then
+    if [[ $result -ne 0 ]]; then
+        exit $result
+    fi
+fi
 
 if [[ "$CHILD" != "" ]]; then
     exec $CHILD
 else
-    exit 0
+    exit $result
 fi

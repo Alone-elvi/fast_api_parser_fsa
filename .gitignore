@@ -76,3 +76,7 @@ Thumbs.db
 # Docker
 *.db
 docker-compose.override.yml
+
+*.xlsx
+# ClickHouse data
+data/
