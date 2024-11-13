@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class DataProcessor:
     def __init__(self):
         self.kafka_consumer = Consumer({
-            'bootstrap.servers': KAFKA_BROKER_URL,
+            'bootstrap.servers': 'kafka:29092',
             'group.id': 'processing_group',
             'auto.offset.reset': 'earliest'
         })

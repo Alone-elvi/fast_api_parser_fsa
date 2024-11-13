@@ -8,7 +8,8 @@ FIELD_MAPPING: Dict[str, str] = {
     'cert_registration_date': 'Дата регистрации сертификата',
     'cert_expiration_date': 'Дата окончания действия сертификата',
     'cert_termination_date': 'Дата прекращения сертификата',
-    'cert_scheme': 'Схема сертификации',
+    'termination_reason': 'Причина прекращения',
+    'certification_scheme': 'Схема сертификации',
     
     # Поля заявителя
     'applicant_inn': 'ИНН заявителя',
@@ -44,6 +45,7 @@ FIELD_MAPPING: Dict[str, str] = {
     'certification_body_ogrn': 'ОГРН_ОС',
     'certification_body_accreditation_status': 'Статус аккредитации на момент проверки',
     'certification_body_accreditation_end_date': 'Дата окончания/ приостановки аккредитации',
+    'certification_body_number': 'Номер записи в РАЛ органа по сертификации',
     
     # Поля СМК
     'qms_cert_number': 'Номер_СС_СМК',

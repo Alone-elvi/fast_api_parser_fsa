@@ -32,7 +32,7 @@ pgdata/
 dump.sql
 
 # ClickHouse specific
-# clickhouse/
+clickhouse/
 clickhouse-logs/
 clickhouse-data/
 
