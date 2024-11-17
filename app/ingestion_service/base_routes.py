@@ -10,12 +10,14 @@ import traceback
 from datetime import date
 from typing import Dict, Any, List
 from confluent_kafka import Producer
+from confluent_kafka.admin import AdminClient, NewTopic
 from common.config import KAFKA_BOOTSTRAP_SERVERS
 
 from .models import Certificate
 from .schemas import CertificateData, FileProcessingResponse, ProcessingError
 from .constants import FIELD_MAPPING
 from .utils import clean_dataframe, process_excel_record
+from icecream import ic
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +31,43 @@ producer_config = {
     'compression.type': 'gzip'  # Добавляем сжатие
 }
 
-# Инициализация Kafka producer
+# Конфигурация Kafka
+kafka_config = {
+    'bootstrap.servers': 'kafka:29092',
+    'client.id': 'ingestion_service'
+}
+
+def ensure_topic_exists(topic_name: str, num_partitions: int = 1, replication_factor: int = 1):
+    """Создает топик, если он не существует"""
+    admin_client = AdminClient(kafka_config)
+    
+    # Получаем список существующих топиков
+    topics = admin_client.list_topics().topics
+    
+    if topic_name not in topics:
+        logger.info(f"Creating topic: {topic_name}")
+        topic = NewTopic(
+            topic_name,
+            num_partitions=num_partitions,
+            replication_factor=replication_factor
+        )
+        
+        try:
+            futures = admin_client.create_topics([topic])
+            for topic, future in futures.items():
+                future.result()  # Ждем завершения создания
+            logger.info(f"Topic {topic_name} created successfully")
+        except Exception as e:
+            logger.error(f"Error creating topic {topic_name}: {e}")
+            # Если топик уже существует, это не ошибка
+            if "already exists" not in str(e):
+                raise
+    else:
+        logger.info(f"Topic {topic_name} already exists")
+
+# Инициализация при старте приложения
 producer = Producer(producer_config)
+ensure_topic_exists('validated_certificates')
 
 def delivery_report(err, msg):
     """Callback для отслеживания доставки сообщений"""
@@ -77,14 +114,19 @@ def send_records_batch(producer: Producer, topic: str, records: List[Dict], file
 async def upload_file(file: UploadFile = File(...)):
     try:
         file_id = str(uuid.uuid4())
+
         logger.info(f"Processing file with ID: {file_id}")
         
         contents = await file.read()
+
         df = pd.read_excel(BytesIO(contents))
+
         logger.info(f"File read successfully. Shape: {df.shape}")
         
         df = clean_dataframe(df)
+
         records = df.to_dict('records')
+
         logger.info(f"Converted to {len(records)} records")
         
         validated_records = []
@@ -98,6 +140,7 @@ async def upload_file(file: UploadFile = File(...)):
                 record = {k: None if pd.isna(v) else v for k, v in record.items()}
                 
                 mapped_record = process_excel_record(record)
+
                 logger.debug(f"Mapped record {idx}: {mapped_record}")
                 
                 validated_record = CertificateData(**mapped_record)

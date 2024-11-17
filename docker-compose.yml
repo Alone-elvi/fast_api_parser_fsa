@@ -101,8 +101,8 @@ services:
     networks:
       - fsa_network
     volumes:
-      - ./migrations/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
-      - ./migrations/postgres/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations/postgres:/docker-entrypoint-initdb.d
 
   ingestion_service:
     build:
@@ -123,14 +123,22 @@ services:
       context: .
       dockerfile: ./app/processing_service/Dockerfile
     depends_on:
-      - base
+      base:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
     volumes:
       - ./app/common:/app/common
       - ./app/processing_service:/app/processing_service
+      - ./logs:/app/logs:rw
     environment:
       PYTHONUNBUFFERED: 1
       PYTHONPATH: /app
-      KAFKA_BROKER_URL: kafka:9092
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       CLICKHOUSE_HOST: clickhouse
       CLICKHOUSE_PORT: 8123
       POSTGRES_HOST: postgres
@@ -138,8 +146,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: fsa_parser_db
-    command: >
-      /bin/sh -c "chmod +x /app/wait-for-it.sh &&  /app/wait-for-it.sh kafka:9092 --timeout=300 --strict --  /app/wait-for-it.sh postgres:5432 --timeout=300 --strict --  /app/wait-for-it.sh clickhouse:8123 --timeout=300 --strict --  python main.py"
+    command: dockerize -wait tcp://kafka:29092 -wait tcp://postgres:5432 -wait tcp://clickhouse:8123 -timeout 300s python main.py
     user: root
     restart: on-failure
     networks:
@@ -177,3 +184,4 @@ services:
 volumes:
   clickhouse_data:
   clickhouse_logs:
+  postgres_data:
