@@ -1,4 +1,4 @@
-.PHONY: all build build-base up down restart logs clean migrate-postgres wait-postgres
+.PHONY: all build build-base up down restart logs clean migrate-postgres wait-postgres analyze-certs
 
 # Переменные
 DOCKER_COMPOSE = docker compose
@@ -45,7 +45,7 @@ wait-postgres:
 migrate-postgres:
 	@echo "Applying PostgreSQL migrations..."
 	@if docker exec $(POSTGRES_CONTAINER) psql -U postgres -d fsa_parser_db -c "SELECT 1" > /dev/null 2>&1; then \
-		docker exec -i $(POSTGRES_CONTAINER) psql -U postgres -d fsa_parser_db < migrations/postgres/add_constraints.sql; \
+		echo "Database is accessible, migrations already applied during initialization"; \
 	else \
 		echo "Error: Could not connect to PostgreSQL database"; \
 		exit 1; \
@@ -134,3 +134,8 @@ help:
 	@echo "  make rebuild-ingestion - Rebuild and restart ingestion service"
 	@echo "  make rebuild-analytics - Rebuild and restart analytics service"
 	@echo "  make rebuild-service service=NAME - Rebuild and restart specific service"
+	@echo "  make analyze-certs - Analyze certificates"
+
+# Анализ сертификатов
+analyze-certs:
+	docker compose run --rm processing_service python -m processing_service.utils.analyze_certificates
